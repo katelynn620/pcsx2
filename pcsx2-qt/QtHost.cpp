@@ -18,6 +18,7 @@
 #include "pcsx2/CDVD/CDVD.h"
 #include "pcsx2/Counters.h"
 #include "pcsx2/DebugTools/Debug.h"
+#include "pcsx2/DebugTools/DebugServer.h"
 #include "pcsx2/GS.h"
 #include "pcsx2/GS/GS.h"
 #include "pcsx2/GSDumpReplayer.h"
@@ -2149,6 +2150,7 @@ void QtHost::PrintCommandLineHelp(const std::string_view progname)
 	std::fprintf(stderr, "  -nofullscreen: Prevents fullscreen mode from triggering if enabled.\n");
 	std::fprintf(stderr, "  -bigpicture: Forces PCSX2 to use the Big Picture mode (useful for controller-only and couch play).\n");
 	std::fprintf(stderr, "  -earlyconsolelog: Forces logging of early console messages to console.\n");
+	std::fprintf(stderr, "  -debugserver <host[:port]>: Address the MCP debug server listens on (default 127.0.0.1:21512, no authentication).\n");
 	std::fprintf(stderr, "  -testconfig: Initializes configuration and checks version, then exits.\n");
 	std::fprintf(stderr, "  -setupwizard: Forces initial setup wizard to run.\n");
 	std::fprintf(stderr, "  -debugger: Open debugger and break on entry point.\n");
@@ -2285,6 +2287,23 @@ bool QtHost::ParseCommandLineOptions(const QStringList& args, std::shared_ptr<VM
 			else if (CHECK_ARG(QStringLiteral("-earlyconsolelog")))
 			{
 				InitializeEarlyConsole();
+				continue;
+			}
+			else if (CHECK_ARG_PARAM(QStringLiteral("-debugserver")))
+			{
+				// Accepts "host", ":port" or "host:port"; omitted parts keep their defaults (127.0.0.1, 21512).
+				const QString value = (++it)->trimmed();
+				const int colon = value.lastIndexOf(QLatin1Char(':'));
+				QString host = (colon < 0) ? value : value.left(colon);
+				bool port_ok = true;
+				const int port = (colon < 0) ? 21512 : value.mid(colon + 1).toInt(&port_ok);
+				if (host.isEmpty())
+					host = QStringLiteral("127.0.0.1");
+				if (!port_ok || !DebugServer::Configure(host.toStdString(), port))
+				{
+					std::fprintf(stderr, "Invalid -debugserver value '%s' (expected IPv4 host[:port])\n", value.toUtf8().constData());
+					return false;
+				}
 				continue;
 			}
 			else if (CHECK_ARG(QStringLiteral("-bigpicture")))

@@ -8,6 +8,7 @@
 #include "Counters.h"
 #include "DEV9/DEV9.h"
 #include "DebugTools/DebugInterface.h"
+#include "DebugTools/DebugServer.h"
 #include "DebugTools/SymbolImporter.h"
 #include "Elfheader.h"
 #include "FW.h"
@@ -1372,6 +1373,7 @@ VMBootResult VMManager::Initialize(const VMBootParameters& boot_params, Error* e
 	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
 	Host::OnVMStarting();
 	VMManager::Internal::ResetVMHotkeyState();
+	DebugServer::Start();
 
 	ScopedGuard close_state = [] {
 		if (GSDumpReplayer::IsReplayingDump())
@@ -1687,6 +1689,7 @@ void VMManager::Shutdown(bool save_resume_state)
 	// we'll probably already be stopping (this is how Qt calls shutdown),
 	// but just in case, so any of the stuff we call here knows we don't have a valid VM.
 	s_state.store(VMState::Stopping, std::memory_order_release);
+	DebugServer::Stop();
 
 	SetTimerResolutionIncreased(false);
 
